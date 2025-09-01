@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Grid Path Puzzle - Enhanced</title>
+    <title>Grid Path Puzzle</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js"></script>
@@ -12,34 +12,18 @@
         body {
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            background: #111827;
             overflow: hidden;
             position: fixed;
             width: 100%;
             height: 100%;
             touch-action: none;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         #root {
             width: 100%;
             height: 100%;
             overflow: auto;
             -webkit-overflow-scrolling: touch;
-        }
-        .game-area {
-            touch-action: none;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
-        .smooth-transition {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .glow-effect {
-            box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
         }
     </style>
 </head>
@@ -49,15 +33,13 @@
     <script type="text/babel">
         const { useState, useRef, useCallback, useEffect } = React;
 
-        // Enhanced icon components
+        // Simple icon components
         const RotateCcw = () => React.createElement('span', null, '🔄');
         const Play = () => React.createElement('span', null, '▶️');
         const Trophy = () => React.createElement('span', null, '🏆');
         const Camera = () => React.createElement('span', null, '📸');
         const Lightbulb = () => React.createElement('span', null, '💡');
         const Undo = () => React.createElement('span', null, '↶');
-        const Clock = () => React.createElement('span', null, '⏰');
-        const Shield = () => React.createElement('span', null, '��️');
 
         const GridPathGame = () => {
             const [difficulty, setDifficulty] = useState('easy');
@@ -73,53 +55,22 @@
             const [backtracks, setBacktracks] = useState(0);
             const [isDragging, setIsDragging] = useState(false);
             const [dragPath, setDragPath] = useState([]);
-            const [timeLimit, setTimeLimit] = useState(null);
-            const [movesLeft, setMovesLeft] = useState(null);
             const gameRef = useRef(null);
             const canvasRef = useRef(null);
             const gridRef = useRef(null);
             const intervalRef = useRef(null);
-            const lastTouchTime = useRef(0);
 
-            // Simplified and reliable difficulty system
+            // Simple, reliable difficulty system
             const difficulties = {
-                easy: { 
-                    size: 4, 
-                    maxNumber: 16, 
-                    barriers: 0, 
-                    timeLimit: null,
-                    movesLimit: null,
-                    description: "4×4 grid, no barriers"
-                },
-                medium: { 
-                    size: 5, 
-                    maxNumber: 25, 
-                    barriers: 1, 
-                    timeLimit: null,
-                    movesLimit: null,
-                    description: "5×5 grid, 1 barrier"
-                },
-                hard: { 
-                    size: 5, 
-                    maxNumber: 25, 
-                    barriers: 2, 
-                    timeLimit: 120, // 2 minutes
-                    movesLimit: null,
-                    description: "5×5 grid, 2 barriers, 2min timer"
-                },
-                expert: { 
-                    size: 6, 
-                    maxNumber: 36, 
-                    barriers: 3, 
-                    timeLimit: 180, // 3 minutes
-                    movesLimit: 50, // Limited moves
-                    description: "6×6 grid, 3 barriers, 3min timer, limited moves"
-                }
+                easy: { size: 4, maxNumber: 16, description: "4×4 grid" },
+                medium: { size: 5, maxNumber: 25, description: "5×5 grid" },
+                hard: { size: 6, maxNumber: 36, description: "6×6 grid" },
+                expert: { size: 7, maxNumber: 49, description: "7×7 grid" }
             };
 
-            // FIXED: Reliable grid generation that always works
-            const generateGrid = useCallback((size, maxNumber, barrierCount) => {
-                console.log(`Generating grid: ${size}x${size}, barriers: ${barrierCount}`);
+            // Simple, reliable grid generation
+            const generateGrid = useCallback((size, maxNumber) => {
+                const totalCells = size * size;
                 
                 // Create empty grid
                 const newGrid = [];
@@ -131,7 +82,6 @@
                             row: i,
                             col: j,
                             visited: false,
-                            isBarrier: false,
                             x: j,
                             y: i
                         });
@@ -139,11 +89,11 @@
                     newGrid.push(row);
                 }
                 
-                // First, generate a valid path
+                // Generate a valid path using simple random walk
                 const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
                 const usedCells = new Set();
                 
-                // Start from a corner (more reliable)
+                // Start from top-left corner
                 let currentRow = 0;
                 let currentCol = 0;
                 
@@ -152,7 +102,7 @@
                 newGrid[currentRow][currentCol].value = 1;
                 
                 // Generate path for numbers 2 through totalCells
-                for (let num = 2; num <= size * size; num++) {
+                for (let num = 2; num <= totalCells; num++) {
                     // Find valid adjacent cells
                     const validMoves = [];
                     
@@ -167,10 +117,9 @@
                         }
                     }
                     
-                    // If no valid moves, try a different approach
+                    // If no valid moves, restart
                     if (validMoves.length === 0) {
-                        console.log('No valid moves, regenerating...');
-                        return generateGrid(size, maxNumber, barrierCount);
+                        return generateGrid(size, maxNumber);
                     }
                     
                     // Choose random valid move
@@ -183,51 +132,24 @@
                     currentCol = nextCol;
                 }
                 
-                // Now add barriers to cells that are NOT in the path
-                const pathCells = new Set();
-                for (let i = 0; i < size; i++) {
-                    for (let j = 0; j < size; j++) {
-                        if (newGrid[i][j].value > 0) {
-                            pathCells.add(`${i},${j}`);
-                        }
-                    }
-                }
-                
-                let barriersPlaced = 0;
-                const maxAttempts = 100; // Prevent infinite loops
-                let attempts = 0;
-                
-                while (barriersPlaced < barrierCount && attempts < maxAttempts) {
-                    const row = Math.floor(Math.random() * size);
-                    const col = Math.floor(Math.random() * size);
-                    
-                    // Don't place barriers on path cells or already barrier cells
-                    if (!pathCells.has(`${row},${col}`) && !newGrid[row][col].isBarrier) {
-                        newGrid[row][col].isBarrier = true;
-                        barriersPlaced++;
-                    }
-                    attempts++;
-                }
-                
-                console.log(`Grid generated successfully with ${barriersPlaced} barriers`);
                 return newGrid;
             }, []);
 
-            // Enhanced coordinate detection
+            // Get cell from coordinates
             const getCellFromCoords = useCallback((clientX, clientY) => {
                 if (!gridRef.current || !grid.length) return null;
                 
                 const gridRect = gridRef.current.getBoundingClientRect();
                 const config = difficulties[difficulty];
-                const cellSize = 320 / config.size;
+                const cellSize = 300 / config.size;
                 
                 const x = clientX - gridRect.left - 10;
                 const y = clientY - gridRect.top - 10;
                 
                 if (x < 0 || y < 0) return null;
                 
-                const col = Math.floor(x / (cellSize + 2));
-                const row = Math.floor(y / (cellSize + 2));
+                const col = Math.floor(x / (cellSize + 1));
+                const row = Math.floor(y / (cellSize + 1));
                 
                 if (row >= 0 && row < config.size && col >= 0 && col < config.size) {
                     return { row, col };
@@ -236,53 +158,29 @@
                 return null;
             }, [grid, difficulty]);
 
-            // Start new game with error handling
+            // Start new game
             const startGame = useCallback(() => {
-                try {
-                    console.log('Starting game with difficulty:', difficulty);
-                    const config = difficulties[difficulty];
-                    const newGrid = generateGrid(config.size, config.maxNumber, config.barriers);
-                    
-                    if (!newGrid || newGrid.length === 0) {
-                        console.error('Failed to generate grid');
-                        return;
-                    }
-                    
-                    setGrid(newGrid);
-                    setPath([]);
-                    setCurrentNumber(1);
-                    setGameState('playing');
-                    setScore(0);
-                    setTimeElapsed(0);
-                    setGameStartTime(Date.now());
-                    setMaxNumber(config.maxNumber);
-                    setShowHint(false);
-                    setBacktracks(0);
-                    setIsDragging(false);
-                    setDragPath([]);
-                    setTimeLimit(config.timeLimit);
-                    setMovesLeft(config.movesLimit);
-                    
-                    console.log('Game started successfully');
-                } catch (error) {
-                    console.error('Error starting game:', error);
-                }
+                const config = difficulties[difficulty];
+                const newGrid = generateGrid(config.size, config.maxNumber);
+                setGrid(newGrid);
+                setPath([]);
+                setCurrentNumber(1);
+                setGameState('playing');
+                setScore(0);
+                setTimeElapsed(0);
+                setGameStartTime(Date.now());
+                setMaxNumber(config.maxNumber);
+                setShowHint(false);
+                setBacktracks(0);
+                setIsDragging(false);
+                setDragPath([]);
             }, [difficulty, generateGrid]);
 
             // Timer effect
             useEffect(() => {
                 if (gameState === 'playing' && gameStartTime) {
                     intervalRef.current = setInterval(() => {
-                        const elapsed = Date.now() - gameStartTime;
-                        setTimeElapsed(elapsed);
-                        
-                        // Check time limit
-                        if (timeLimit && elapsed > timeLimit * 1000) {
-                            setGameState('timeout');
-                            if (intervalRef.current) {
-                                clearInterval(intervalRef.current);
-                            }
-                        }
+                        setTimeElapsed(Date.now() - gameStartTime);
                     }, 100);
                 } else {
                     if (intervalRef.current) {
@@ -295,16 +193,16 @@
                         clearInterval(intervalRef.current);
                     }
                 };
-            }, [gameState, gameStartTime, timeLimit]);
+            }, [gameState, gameStartTime]);
 
-            // Enhanced path drawing
+            // Draw path on canvas
             const drawPath = useCallback(() => {
                 const canvas = canvasRef.current;
                 if (!canvas) return;
                 
                 const ctx = canvas.getContext('2d');
                 const config = difficulties[difficulty];
-                const cellSize = 320 / config.size;
+                const cellSize = 300 / config.size;
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
@@ -314,33 +212,33 @@
                 
                 // Draw smooth flowing path
                 ctx.strokeStyle = '#ff6b35';
-                ctx.lineWidth = 8;
+                ctx.lineWidth = 6;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.shadowColor = '#ff6b35';
-                ctx.shadowBlur = 12;
+                ctx.shadowBlur = 8;
                 
                 if (currentPath.length >= 2) {
                     ctx.beginPath();
                     
                     // Start point
                     const start = currentPath[0];
-                    const startX = (start.col + 0.5) * (cellSize + 2);
-                    const startY = (start.row + 0.5) * (cellSize + 2);
+                    const startX = (start.col + 0.5) * (cellSize + 1);
+                    const startY = (start.row + 0.5) * (cellSize + 1);
                     ctx.moveTo(startX, startY);
                     
                     // Draw smooth curves between points
                     for (let i = 1; i < currentPath.length; i++) {
                         const current = currentPath[i];
-                        const x = (current.col + 0.5) * (cellSize + 2);
-                        const y = (current.row + 0.5) * (cellSize + 2);
+                        const x = (current.col + 0.5) * (cellSize + 1);
+                        const y = (current.row + 0.5) * (cellSize + 1);
                         
                         if (i === 1) {
                             ctx.lineTo(x, y);
                         } else {
                             const prev = currentPath[i - 1];
-                            const prevX = (prev.col + 0.5) * (cellSize + 2);
-                            const prevY = (prev.row + 0.5) * (cellSize + 2);
+                            const prevX = (prev.col + 0.5) * (cellSize + 1);
+                            const prevY = (prev.row + 0.5) * (cellSize + 1);
                             
                             // Create smooth curve
                             const cpX = (prevX + x) / 2;
@@ -356,19 +254,19 @@
                 ctx.shadowBlur = 0;
                 for (let i = 0; i < currentPath.length; i++) {
                     const cell = currentPath[i];
-                    const x = (cell.col + 0.5) * (cellSize + 2);
-                    const y = (cell.row + 0.5) * (cellSize + 2);
+                    const x = (cell.col + 0.5) * (cellSize + 1);
+                    const y = (cell.row + 0.5) * (cellSize + 1);
                     
                     // Outer glow
-                    ctx.fillStyle = 'rgba(255, 107, 53, 0.4)';
+                    ctx.fillStyle = 'rgba(255, 107, 53, 0.3)';
                     ctx.beginPath();
-                    ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                    ctx.arc(x, y, 6, 0, 2 * Math.PI);
                     ctx.fill();
                     
                     // Inner point
                     ctx.fillStyle = '#ff6b35';
                     ctx.beginPath();
-                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                    ctx.arc(x, y, 4, 0, 2 * Math.PI);
                     ctx.fill();
                 }
             }, [path, dragPath, isDragging, difficulty]);
@@ -377,15 +275,11 @@
                 drawPath();
             }, [drawPath]);
 
-            // Enhanced touch handling
+            // Handle drag start
             const handleDragStart = useCallback((e) => {
                 if (gameState !== 'playing') return;
                 
                 e.preventDefault();
-                const now = Date.now();
-                if (now - lastTouchTime.current < 50) return;
-                lastTouchTime.current = now;
-                
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
                 
@@ -395,14 +289,16 @@
                 const { row, col } = cellCoords;
                 const cell = grid[row][col];
                 
-                if (cell.value === currentNumber && !cell.isBarrier) {
+                if (cell.value === currentNumber) {
                     setIsDragging(true);
                     setDragPath([{ row, col, value: cell.value }]);
-                } else if (!cell.isBarrier) {
+                } else {
+                    // Count as backtrack
                     setBacktracks(prev => prev + 1);
                 }
             }, [gameState, grid, currentNumber, getCellFromCoords]);
 
+            // Handle drag move
             const handleDragMove = useCallback((e) => {
                 if (gameState !== 'playing') return;
                 
@@ -416,9 +312,7 @@
                 const { row, col } = cellCoords;
                 const cell = grid[row][col];
                 
-                // Can't move to barriers
-                if (cell.isBarrier) return;
-                
+                // Start dragging if not already
                 if (!isDragging) {
                     if (cell.value === currentNumber) {
                         setIsDragging(true);
@@ -432,14 +326,18 @@
                 const lastCell = dragPath[dragPath.length - 1];
                 const expectedNumber = dragPath.length + currentNumber - 1;
                 
+                // Check if this is a new cell to add to path
                 if (row === lastCell.row && col === lastCell.col) return;
                 
+                // Check if we're going backwards in the path
                 const existingIndex = dragPath.findIndex(p => p.row === row && p.col === col);
                 if (existingIndex >= 0) {
+                    // Allow going back in the path
                     setDragPath(prev => prev.slice(0, existingIndex + 1));
                     return;
                 }
                 
+                // Check if move is valid (90-degree movement only)
                 const rowDiff = Math.abs(row - lastCell.row);
                 const colDiff = Math.abs(col - lastCell.col);
                 
@@ -450,6 +348,7 @@
                 }
             }, [isDragging, gameState, grid, dragPath, currentNumber, getCellFromCoords]);
 
+            // Handle drag end
             const handleDragEnd = useCallback((e) => {
                 if (!isDragging) return;
                 
@@ -457,6 +356,7 @@
                 
                 setTimeout(() => {
                     if (dragPath.length > 0) {
+                        // Apply the drag path to the actual path
                         let newGrid = [...grid];
                         let newPath = [...path];
                         let newCurrentNumber = currentNumber;
@@ -473,23 +373,11 @@
                         setPath(newPath);
                         setCurrentNumber(newCurrentNumber);
                         
-                        if (movesLeft !== null) {
-                            setMovesLeft(prev => {
-                                const newMoves = prev - 1;
-                                if (newMoves <= 0) {
-                                    setGameState('nomoves');
-                                    return 0;
-                                }
-                                return newMoves;
-                            });
-                        }
+                        // Calculate score
+                        const newScore = newPath.length * difficulties[difficulty].size * 10 - backtracks * 5;
+                        setScore(Math.max(0, newScore));
                         
-                        const baseScore = newPath.length * difficulties[difficulty].size * 10;
-                        const backtrackPenalty = backtracks * 5;
-                        const timeBonus = timeLimit ? Math.max(0, (timeLimit * 1000 - timeElapsed) / 100) : 0;
-                        const newScore = Math.max(0, baseScore - backtrackPenalty + timeBonus);
-                        setScore(newScore);
-                        
+                        // Check if game is completed
                         const config = difficulties[difficulty];
                         const totalCells = config.size * config.size;
                         
@@ -504,8 +392,9 @@
                     setIsDragging(false);
                     setDragPath([]);
                 }, 100);
-            }, [isDragging, dragPath, grid, path, currentNumber, backtracks, difficulty, timeLimit, timeElapsed, movesLeft]);
+            }, [isDragging, dragPath, grid, path, currentNumber, backtracks, difficulty]);
 
+            // Undo last move
             const undoMove = () => {
                 if (path.length === 0 || gameState !== 'playing') return;
                 
@@ -521,14 +410,11 @@
                 setCurrentNumber(currentNumber - 1);
                 setBacktracks(prev => prev + 1);
                 
-                if (movesLeft !== null) {
-                    setMovesLeft(prev => prev + 1);
-                }
-                
                 const newScore = Math.max(0, (path.length - 1) * difficulties[difficulty].size * 10 - backtracks * 5);
                 setScore(newScore);
             };
 
+            // Reset game
             const resetGame = () => {
                 setGameState('menu');
                 setGrid([]);
@@ -540,10 +426,9 @@
                 setBacktracks(0);
                 setIsDragging(false);
                 setDragPath([]);
-                setTimeLimit(null);
-                setMovesLeft(null);
             };
 
+            // Screenshot function
             const takeScreenshot = async () => {
                 if (!gameRef.current) return;
                 
@@ -554,9 +439,11 @@
                     canvas.width = 400;
                     canvas.height = 600;
                     
+                    // Background
                     ctx.fillStyle = '#1f2937';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     
+                    // Title and stats
                     ctx.fillStyle = '#ffffff';
                     ctx.font = 'bold 24px Arial';
                     ctx.textAlign = 'center';
@@ -568,11 +455,12 @@
                     ctx.fillText(`Difficulty: ${difficulty.toUpperCase()}`, canvas.width/2, 140);
                     ctx.fillText(`Path: ${path.length} | Backtracks: ${backtracks}`, canvas.width/2, 170);
                     
+                    // Convert to blob and download
                     canvas.toBlob((blob) => {
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = `grid-puzzle-${difficulty}-score-${score}.png`;
+                        a.download = `grid-puzzle-score-${score}-backtracks-${backtracks}.png`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -587,12 +475,6 @@
                 return (ms / 1000).toFixed(1) + 's';
             };
 
-            const formatTimeLimit = (seconds) => {
-                const mins = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                return `${mins}:${secs.toString().padStart(2, '0')}`;
-            };
-
             if (gameState === 'menu') {
                 return React.createElement('div', { 
                     ref: gameRef, 
@@ -600,11 +482,11 @@
                 },
                     React.createElement('div', { className: "text-center mb-8" },
                         React.createElement('h1', { className: "text-3xl font-bold mb-2 text-orange-400" }, "Grid Path Puzzle"),
-                        React.createElement('p', { className: "text-gray-300" }, "Enhanced Edition"),
-                        React.createElement('p', { className: "text-gray-400 text-sm mt-2" }, "Connect numbers 1→2→3... with barriers and challenges"),
+                        React.createElement('p', { className: "text-gray-300" }, "Connect numbers 1→2→3... in sequence"),
+                        React.createElement('p', { className: "text-gray-400 text-sm mt-2" }, "Drag/swipe through numbers - only 90° moves"),
                         React.createElement('div', { className: "flex items-center justify-center gap-2 mt-3 text-orange-300" },
                             React.createElement('div', { className: "w-4 h-4 bg-orange-500 rounded-full" }),
-                            React.createElement('div', { className: "text-sm" }, "Smooth swipes • Barriers • Time challenges")
+                            React.createElement('div', { className: "text-sm" }, "Path shows your route")
                         )
                     ),
                     
@@ -617,7 +499,7 @@
                                     onClick: () => setDifficulty(level),
                                     className: `p-3 rounded-lg text-center transition-colors ${
                                         difficulty === level 
-                                            ? 'bg-orange-600 text-white glow-effect' 
+                                            ? 'bg-orange-600 text-white' 
                                             : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
                                     }`
                                 },
@@ -631,7 +513,7 @@
                     
                     React.createElement('button', {
                         onClick: startGame,
-                        className: "w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 smooth-transition"
+                        className: "w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                     },
                         React.createElement(Play),
                         "Start Game"
@@ -641,7 +523,7 @@
 
             const config = difficulties[difficulty];
             const gridSize = config.size;
-            const cellSize = Math.floor(320 / gridSize);
+            const cellSize = Math.floor(300 / gridSize);
 
             return React.createElement('div', { 
                 ref: gameRef, 
@@ -654,11 +536,11 @@
                             React.createElement('button', {
                                 onClick: undoMove,
                                 disabled: path.length === 0,
-                                className: "bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 disabled:text-gray-500 p-2 rounded-lg transition-colors smooth-transition"
+                                className: "bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 disabled:text-gray-500 p-2 rounded-lg transition-colors"
                             }, React.createElement(Undo)),
                             React.createElement('button', {
                                 onClick: () => setShowHint(!showHint),
-                                className: `p-2 rounded-lg transition-colors smooth-transition ${showHint ? 'bg-blue-500' : 'bg-blue-600 hover:bg-blue-700'}`
+                                className: `p-2 rounded-lg transition-colors ${showHint ? 'bg-blue-500' : 'bg-blue-600 hover:bg-blue-700'}`
                             }, React.createElement(Lightbulb))
                         ),
                         
@@ -670,11 +552,11 @@
                         React.createElement('div', { className: "flex gap-2" },
                             React.createElement('button', {
                                 onClick: takeScreenshot,
-                                className: "bg-purple-600 hover:bg-purple-700 p-2 rounded-lg transition-colors smooth-transition"
+                                className: "bg-purple-600 hover:bg-purple-700 p-2 rounded-lg transition-colors"
                             }, React.createElement(Camera)),
                             React.createElement('button', {
                                 onClick: resetGame,
-                                className: "bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors smooth-transition"
+                                className: "bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors"
                             }, React.createElement(RotateCcw))
                         )
                     ),
@@ -683,18 +565,6 @@
                         React.createElement('span', null, `Score: ${score}`),
                         React.createElement('span', null, `Backtracks: ${backtracks}`),
                         React.createElement('span', null, `Time: ${formatTime(timeElapsed)}`)
-                    ),
-                    
-                    // Status bar
-                    (timeLimit || movesLeft !== null) && React.createElement('div', { className: "flex justify-between text-xs text-yellow-400 mt-2" },
-                        timeLimit && React.createElement('span', { className: "flex items-center gap-1" },
-                            React.createElement(Clock),
-                            `Time Left: ${formatTimeLimit(Math.max(0, timeLimit - Math.floor(timeElapsed / 1000)))}`
-                        ),
-                        movesLeft !== null && React.createElement('span', { className: "flex items-center gap-1" },
-                            React.createElement(Shield),
-                            `Moves Left: ${movesLeft}`
-                        )
                     )
                 ),
 
@@ -702,8 +572,8 @@
                 React.createElement('div', { className: "flex justify-center mb-4" },
                     React.createElement('div', {
                         ref: gridRef,
-                        className: "relative bg-gray-100 rounded-lg p-2 select-none smooth-transition",
-                        style: { width: '340px', height: '340px' },
+                        className: "relative bg-gray-100 rounded-lg p-2 select-none",
+                        style: { width: '320px', height: '320px' },
                         onMouseDown: handleDragStart,
                         onMouseMove: handleDragMove,
                         onMouseUp: handleDragEnd,
@@ -723,11 +593,9 @@
                                 row.map((cell, colIndex) =>
                                     React.createElement('div', {
                                         key: `${rowIndex}-${colIndex}`,
-                                        className: `flex items-center justify-center rounded transition-all smooth-transition ${
-                                            cell.isBarrier
-                                                ? 'bg-red-300 border-2 border-red-500'
-                                                : cell.visited 
-                                                ? 'bg-orange-200 glow-effect' 
+                                        className: `flex items-center justify-center rounded transition-all ${
+                                            cell.visited 
+                                                ? 'bg-orange-200' 
                                                 : cell.value === currentNumber && showHint
                                                 ? 'bg-yellow-300 animate-pulse'
                                                 : 'bg-white hover:bg-gray-100'
@@ -737,14 +605,12 @@
                                             height: `${cellSize}px`
                                         }
                                     },
-                                        cell.isBarrier 
-                                            ? React.createElement('div', { className: "text-red-600 font-bold" }, '🚫')
-                                            : React.createElement('div', {
-                                                className: `w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
-                                                    cell.visited ? 'bg-orange-500 text-white' : 'bg-gray-700 text-white'
-                                                }`,
-                                                style: { fontSize: cellSize > 40 ? '14px' : '12px' }
-                                            }, cell.value)
+                                        React.createElement('div', {
+                                            className: `w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
+                                                cell.visited ? 'bg-orange-500 text-white' : 'bg-gray-700 text-white'
+                                            }`,
+                                            style: { fontSize: cellSize > 40 ? '14px' : '12px' }
+                                        }, cell.value)
                                     )
                                 )
                             )
@@ -752,38 +618,31 @@
                         // Canvas for drawing path
                         React.createElement('canvas', {
                             ref: canvasRef,
-                            width: 320,
-                            height: 320,
+                            width: 300,
+                            height: 300,
                             className: "absolute top-2 left-2 pointer-events-none",
-                            style: { width: '320px', height: '320px' }
+                            style: { width: '300px', height: '300px' }
                         })
                     )
                 ),
 
-                // Completion/timeout messages
-                (gameState === 'completed' || gameState === 'timeout' || gameState === 'nomoves') && React.createElement('div', {
-                    className: `border p-4 rounded-lg text-center mb-4 ${
-                        gameState === 'completed' 
-                            ? 'bg-green-800 border-green-600' 
-                            : 'bg-red-800 border-red-600'
-                    }`
+                // Completion message
+                gameState === 'completed' && React.createElement('div', {
+                    className: "bg-green-800 border border-green-600 p-4 rounded-lg text-center mb-4"
                 },
                     React.createElement(Trophy, { className: "mx-auto mb-2 text-yellow-400", style: { fontSize: '32px' } }),
-                    React.createElement('div', { className: "text-lg font-bold mb-1" }, 
-                        gameState === 'completed' ? "Puzzle Completed!" :
-                        gameState === 'timeout' ? "Time's Up!" : "No Moves Left!"
-                    ),
-                    React.createElement('div', { className: "text-sm mb-2" }, `Final Score: ${score}`),
-                    React.createElement('div', { className: "text-sm mb-2" }, `Time: ${formatTime(timeElapsed)}`),
-                    React.createElement('div', { className: "text-sm mb-3" }, `Backtracks: ${backtracks}`),
-                    React.createElement('div', { className: "space-x-2" },
+                    React.createElement('div', { className: "text-lg font-bold text-green-300 mb-1" }, "Puzzle Completed!"),
+                    React.createElement('div', { className: "text-sm text-green-400" }, `Final Score: ${score}`),
+                    React.createElement('div', { className: "text-sm text-green-400" }, `Time: ${formatTime(timeElapsed)}`),
+                    React.createElement('div', { className: "text-sm text-green-400" }, `Backtracks: ${backtracks}`),
+                    React.createElement('div', { className: "mt-3 space-x-2" },
                         React.createElement('button', {
                             onClick: takeScreenshot,
-                            className: "bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm transition-colors smooth-transition"
+                            className: "bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm transition-colors"
                         }, "📸 Save Score"),
                         React.createElement('button', {
                             onClick: startGame,
-                            className: "bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm transition-colors smooth-transition"
+                            className: "bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded text-sm transition-colors"
                         }, "Play Again")
                     )
                 ),
@@ -791,7 +650,7 @@
                 // How to Play
                 React.createElement('div', { className: "text-center mt-4" },
                     React.createElement('div', { className: "text-xs text-gray-500" },
-                        "Smooth swipes 1→2→3... • Avoid barriers �� • Beat the clock ⏰ • Limited moves 🛡️"
+                        "Drag/swipe 1→2→3... • Only 90° moves • Avoid backtracks for high score"
                     )
                 )
             );
