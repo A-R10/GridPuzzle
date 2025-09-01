@@ -61,7 +61,6 @@
 
         const GridPathGame = () => {
             const [difficulty, setDifficulty] = useState('easy');
-            const [gameMode, setGameMode] = useState('classic');
             const [gameState, setGameState] = useState('menu');
             const [grid, setGrid] = useState([]);
             const [path, setPath] = useState([]);
@@ -82,7 +81,7 @@
             const intervalRef = useRef(null);
             const lastTouchTime = useRef(0);
 
-            // Enhanced difficulty system with barriers and challenges
+            // Simplified and reliable difficulty system
             const difficulties = {
                 easy: { 
                     size: 4, 
@@ -95,38 +94,32 @@
                 medium: { 
                     size: 5, 
                     maxNumber: 25, 
-                    barriers: 2, 
+                    barriers: 1, 
                     timeLimit: null,
                     movesLimit: null,
-                    description: "5×5 grid, 2 barriers"
+                    description: "5×5 grid, 1 barrier"
                 },
                 hard: { 
                     size: 5, 
                     maxNumber: 25, 
-                    barriers: 4, 
+                    barriers: 2, 
                     timeLimit: 120, // 2 minutes
                     movesLimit: null,
-                    description: "5×5 grid, 4 barriers, 2min timer"
+                    description: "5×5 grid, 2 barriers, 2min timer"
                 },
                 expert: { 
                     size: 6, 
                     maxNumber: 36, 
-                    barriers: 6, 
+                    barriers: 3, 
                     timeLimit: 180, // 3 minutes
-                    movesLimit: 45, // Limited moves
-                    description: "6×6 grid, 6 barriers, 3min timer, limited moves"
+                    movesLimit: 50, // Limited moves
+                    description: "6×6 grid, 3 barriers, 3min timer, limited moves"
                 }
             };
 
-            const gameModes = {
-                classic: { name: "Classic", description: "Standard puzzle solving" },
-                speed: { name: "Speed Run", description: "Race against time" },
-                precision: { name: "Precision", description: "Limited moves challenge" }
-            };
-
-            // Generate grid with barriers
+            // FIXED: Reliable grid generation that always works
             const generateGrid = useCallback((size, maxNumber, barrierCount) => {
-                const totalCells = size * size;
+                console.log(`Generating grid: ${size}x${size}, barriers: ${barrierCount}`);
                 
                 // Create empty grid
                 const newGrid = [];
@@ -146,39 +139,21 @@
                     newGrid.push(row);
                 }
                 
-                // Add barriers randomly
-                let barriersPlaced = 0;
-                while (barriersPlaced < barrierCount) {
-                    const row = Math.floor(Math.random() * size);
-                    const col = Math.floor(Math.random() * size);
-                    
-                    if (!newGrid[row][col].isBarrier) {
-                        newGrid[row][col].isBarrier = true;
-                        barriersPlaced++;
-                    }
-                }
-                
-                // Generate a valid path using random walk, avoiding barriers
+                // First, generate a valid path
                 const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
                 const usedCells = new Set();
                 
-                // Find a valid starting position (not a barrier)
-                let startRow, startCol;
-                do {
-                    startRow = Math.floor(Math.random() * size);
-                    startCol = Math.floor(Math.random() * size);
-                } while (newGrid[startRow][startCol].isBarrier);
+                // Start from a corner (more reliable)
+                let currentRow = 0;
+                let currentCol = 0;
                 
                 // Place number 1
-                usedCells.add(`${startRow},${startCol}`);
-                newGrid[startRow][startCol].value = 1;
-                
-                let currentRow = startRow;
-                let currentCol = startCol;
+                usedCells.add(`${currentRow},${currentCol}`);
+                newGrid[currentRow][currentCol].value = 1;
                 
                 // Generate path for numbers 2 through totalCells
-                for (let num = 2; num <= totalCells; num++) {
-                    // Find valid adjacent cells (not barriers, not used)
+                for (let num = 2; num <= size * size; num++) {
+                    // Find valid adjacent cells
                     const validMoves = [];
                     
                     for (const [dr, dc] of directions) {
@@ -187,14 +162,14 @@
                         
                         if (newRow >= 0 && newRow < size && 
                             newCol >= 0 && newCol < size && 
-                            !usedCells.has(`${newRow},${newCol}`) &&
-                            !newGrid[newRow][newCol].isBarrier) {
+                            !usedCells.has(`${newRow},${newCol}`)) {
                             validMoves.push([newRow, newCol]);
                         }
                     }
                     
-                    // If no valid moves, restart
+                    // If no valid moves, try a different approach
                     if (validMoves.length === 0) {
+                        console.log('No valid moves, regenerating...');
                         return generateGrid(size, maxNumber, barrierCount);
                     }
                     
@@ -208,23 +183,50 @@
                     currentCol = nextCol;
                 }
                 
+                // Now add barriers to cells that are NOT in the path
+                const pathCells = new Set();
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        if (newGrid[i][j].value > 0) {
+                            pathCells.add(`${i},${j}`);
+                        }
+                    }
+                }
+                
+                let barriersPlaced = 0;
+                const maxAttempts = 100; // Prevent infinite loops
+                let attempts = 0;
+                
+                while (barriersPlaced < barrierCount && attempts < maxAttempts) {
+                    const row = Math.floor(Math.random() * size);
+                    const col = Math.floor(Math.random() * size);
+                    
+                    // Don't place barriers on path cells or already barrier cells
+                    if (!pathCells.has(`${row},${col}`) && !newGrid[row][col].isBarrier) {
+                        newGrid[row][col].isBarrier = true;
+                        barriersPlaced++;
+                    }
+                    attempts++;
+                }
+                
+                console.log(`Grid generated successfully with ${barriersPlaced} barriers`);
                 return newGrid;
             }, []);
 
-            // Enhanced coordinate detection with better touch handling
+            // Enhanced coordinate detection
             const getCellFromCoords = useCallback((clientX, clientY) => {
                 if (!gridRef.current || !grid.length) return null;
                 
                 const gridRect = gridRef.current.getBoundingClientRect();
                 const config = difficulties[difficulty];
-                const cellSize = 320 / config.size; // Slightly larger for better visibility
+                const cellSize = 320 / config.size;
                 
                 const x = clientX - gridRect.left - 10;
                 const y = clientY - gridRect.top - 10;
                 
                 if (x < 0 || y < 0) return null;
                 
-                const col = Math.floor(x / (cellSize + 2)); // +2 for gap
+                const col = Math.floor(x / (cellSize + 2));
                 const row = Math.floor(y / (cellSize + 2));
                 
                 if (row >= 0 && row < config.size && col >= 0 && col < config.size) {
@@ -234,27 +236,40 @@
                 return null;
             }, [grid, difficulty]);
 
-            // Start new game with enhanced features
+            // Start new game with error handling
             const startGame = useCallback(() => {
-                const config = difficulties[difficulty];
-                const newGrid = generateGrid(config.size, config.maxNumber, config.barriers);
-                setGrid(newGrid);
-                setPath([]);
-                setCurrentNumber(1);
-                setGameState('playing');
-                setScore(0);
-                setTimeElapsed(0);
-                setGameStartTime(Date.now());
-                setMaxNumber(config.maxNumber);
-                setShowHint(false);
-                setBacktracks(0);
-                setIsDragging(false);
-                setDragPath([]);
-                setTimeLimit(config.timeLimit);
-                setMovesLeft(config.movesLimit);
+                try {
+                    console.log('Starting game with difficulty:', difficulty);
+                    const config = difficulties[difficulty];
+                    const newGrid = generateGrid(config.size, config.maxNumber, config.barriers);
+                    
+                    if (!newGrid || newGrid.length === 0) {
+                        console.error('Failed to generate grid');
+                        return;
+                    }
+                    
+                    setGrid(newGrid);
+                    setPath([]);
+                    setCurrentNumber(1);
+                    setGameState('playing');
+                    setScore(0);
+                    setTimeElapsed(0);
+                    setGameStartTime(Date.now());
+                    setMaxNumber(config.maxNumber);
+                    setShowHint(false);
+                    setBacktracks(0);
+                    setIsDragging(false);
+                    setDragPath([]);
+                    setTimeLimit(config.timeLimit);
+                    setMovesLeft(config.movesLimit);
+                    
+                    console.log('Game started successfully');
+                } catch (error) {
+                    console.error('Error starting game:', error);
+                }
             }, [difficulty, generateGrid]);
 
-            // Enhanced timer with time limit
+            // Timer effect
             useEffect(() => {
                 if (gameState === 'playing' && gameStartTime) {
                     intervalRef.current = setInterval(() => {
@@ -282,7 +297,7 @@
                 };
             }, [gameState, gameStartTime, timeLimit]);
 
-            // Enhanced path drawing with smoother curves
+            // Enhanced path drawing
             const drawPath = useCallback(() => {
                 const canvas = canvasRef.current;
                 if (!canvas) return;
@@ -297,12 +312,8 @@
                 
                 if (currentPath.length < 2) return;
                 
-                // Draw smooth flowing path with gradient
-                const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-                gradient.addColorStop(0, '#ff6b35');
-                gradient.addColorStop(1, '#f7931e');
-                
-                ctx.strokeStyle = gradient;
+                // Draw smooth flowing path
+                ctx.strokeStyle = '#ff6b35';
                 ctx.lineWidth = 8;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
@@ -366,13 +377,13 @@
                 drawPath();
             }, [drawPath]);
 
-            // Enhanced touch handling with throttling
+            // Enhanced touch handling
             const handleDragStart = useCallback((e) => {
                 if (gameState !== 'playing') return;
                 
                 e.preventDefault();
                 const now = Date.now();
-                if (now - lastTouchTime.current < 50) return; // Throttle touches
+                if (now - lastTouchTime.current < 50) return;
                 lastTouchTime.current = now;
                 
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -388,12 +399,10 @@
                     setIsDragging(true);
                     setDragPath([{ row, col, value: cell.value }]);
                 } else if (!cell.isBarrier) {
-                    // Count as backtrack
                     setBacktracks(prev => prev + 1);
                 }
             }, [gameState, grid, currentNumber, getCellFromCoords]);
 
-            // Enhanced drag move with better path validation
             const handleDragMove = useCallback((e) => {
                 if (gameState !== 'playing') return;
                 
@@ -410,7 +419,6 @@
                 // Can't move to barriers
                 if (cell.isBarrier) return;
                 
-                // Start dragging if not already
                 if (!isDragging) {
                     if (cell.value === currentNumber) {
                         setIsDragging(true);
@@ -424,18 +432,14 @@
                 const lastCell = dragPath[dragPath.length - 1];
                 const expectedNumber = dragPath.length + currentNumber - 1;
                 
-                // Check if this is a new cell to add to path
                 if (row === lastCell.row && col === lastCell.col) return;
                 
-                // Check if we're going backwards in the path
                 const existingIndex = dragPath.findIndex(p => p.row === row && p.col === col);
                 if (existingIndex >= 0) {
-                    // Allow going back in the path
                     setDragPath(prev => prev.slice(0, existingIndex + 1));
                     return;
                 }
                 
-                // Check if move is valid (90-degree movement only)
                 const rowDiff = Math.abs(row - lastCell.row);
                 const colDiff = Math.abs(col - lastCell.col);
                 
@@ -446,7 +450,6 @@
                 }
             }, [isDragging, gameState, grid, dragPath, currentNumber, getCellFromCoords]);
 
-            // Enhanced drag end with move counting
             const handleDragEnd = useCallback((e) => {
                 if (!isDragging) return;
                 
@@ -454,7 +457,6 @@
                 
                 setTimeout(() => {
                     if (dragPath.length > 0) {
-                        // Apply the drag path to the actual path
                         let newGrid = [...grid];
                         let newPath = [...path];
                         let newCurrentNumber = currentNumber;
@@ -471,7 +473,6 @@
                         setPath(newPath);
                         setCurrentNumber(newCurrentNumber);
                         
-                        // Count moves if in precision mode
                         if (movesLeft !== null) {
                             setMovesLeft(prev => {
                                 const newMoves = prev - 1;
@@ -483,14 +484,12 @@
                             });
                         }
                         
-                        // Calculate enhanced score
                         const baseScore = newPath.length * difficulties[difficulty].size * 10;
                         const backtrackPenalty = backtracks * 5;
                         const timeBonus = timeLimit ? Math.max(0, (timeLimit * 1000 - timeElapsed) / 100) : 0;
                         const newScore = Math.max(0, baseScore - backtrackPenalty + timeBonus);
                         setScore(newScore);
                         
-                        // Check if game is completed
                         const config = difficulties[difficulty];
                         const totalCells = config.size * config.size;
                         
@@ -507,7 +506,6 @@
                 }, 100);
             }, [isDragging, dragPath, grid, path, currentNumber, backtracks, difficulty, timeLimit, timeElapsed, movesLeft]);
 
-            // Undo last move
             const undoMove = () => {
                 if (path.length === 0 || gameState !== 'playing') return;
                 
@@ -523,7 +521,6 @@
                 setCurrentNumber(currentNumber - 1);
                 setBacktracks(prev => prev + 1);
                 
-                // Restore move if in precision mode
                 if (movesLeft !== null) {
                     setMovesLeft(prev => prev + 1);
                 }
@@ -532,7 +529,6 @@
                 setScore(newScore);
             };
 
-            // Reset game
             const resetGame = () => {
                 setGameState('menu');
                 setGrid([]);
@@ -548,7 +544,6 @@
                 setMovesLeft(null);
             };
 
-            // Enhanced screenshot function
             const takeScreenshot = async () => {
                 if (!gameRef.current) return;
                 
@@ -559,11 +554,9 @@
                     canvas.width = 400;
                     canvas.height = 600;
                     
-                    // Background
                     ctx.fillStyle = '#1f2937';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     
-                    // Title and stats
                     ctx.fillStyle = '#ffffff';
                     ctx.font = 'bold 24px Arial';
                     ctx.textAlign = 'center';
@@ -575,7 +568,6 @@
                     ctx.fillText(`Difficulty: ${difficulty.toUpperCase()}`, canvas.width/2, 140);
                     ctx.fillText(`Path: ${path.length} | Backtracks: ${backtracks}`, canvas.width/2, 170);
                     
-                    // Convert to blob and download
                     canvas.toBlob((blob) => {
                         const url = URL.createObjectURL(blob);
                         const a = document.createElement('a');
@@ -649,13 +641,13 @@
 
             const config = difficulties[difficulty];
             const gridSize = config.size;
-            const cellSize = Math.floor(320 / gridSize); // Larger cells for better visibility
+            const cellSize = Math.floor(320 / gridSize);
 
             return React.createElement('div', { 
                 ref: gameRef, 
                 className: "max-w-md mx-auto p-4 bg-gray-900 text-white rounded-xl shadow-2xl" 
             },
-                // Enhanced Header
+                // Header
                 React.createElement('div', { className: "text-center mb-4" },
                     React.createElement('div', { className: "flex justify-between items-center mb-2" },
                         React.createElement('div', { className: "flex gap-2" },
@@ -693,7 +685,7 @@
                         React.createElement('span', null, `Time: ${formatTime(timeElapsed)}`)
                     ),
                     
-                    // Enhanced status bar
+                    // Status bar
                     (timeLimit || movesLeft !== null) && React.createElement('div', { className: "flex justify-between text-xs text-yellow-400 mt-2" },
                         timeLimit && React.createElement('span', { className: "flex items-center gap-1" },
                             React.createElement(Clock),
@@ -706,7 +698,7 @@
                     )
                 ),
 
-                // Enhanced Game Grid
+                // Game Grid
                 React.createElement('div', { className: "flex justify-center mb-4" },
                     React.createElement('div', {
                         ref: gridRef,
@@ -757,7 +749,7 @@
                                 )
                             )
                         ),
-                        // Enhanced Canvas for drawing path
+                        // Canvas for drawing path
                         React.createElement('canvas', {
                             ref: canvasRef,
                             width: 320,
@@ -768,7 +760,7 @@
                     )
                 ),
 
-                // Enhanced completion/timeout messages
+                // Completion/timeout messages
                 (gameState === 'completed' || gameState === 'timeout' || gameState === 'nomoves') && React.createElement('div', {
                     className: `border p-4 rounded-lg text-center mb-4 ${
                         gameState === 'completed' 
@@ -796,7 +788,7 @@
                     )
                 ),
 
-                // Enhanced How to Play
+                // How to Play
                 React.createElement('div', { className: "text-center mt-4" },
                     React.createElement('div', { className: "text-xs text-gray-500" },
                         "Smooth swipes 1→2→3... • Avoid barriers �� • Beat the clock ⏰ • Limited moves 🛡️"
