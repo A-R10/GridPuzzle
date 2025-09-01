@@ -7,7 +7,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.22.5/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide-react/0.263.1/umd/lucide-react.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -42,7 +41,14 @@
     
     <script type="text/babel">
         const { useState, useRef, useCallback, useEffect } = React;
-        const { RotateCcw, Play, Trophy, Camera, Lightbulb, Undo } = lucideReact;
+
+        // Simple icon components using Unicode symbols
+        const RotateCcw = () => React.createElement('span', null, '🔄');
+        const Play = () => React.createElement('span', null, '▶️');
+        const Trophy = () => React.createElement('span', null, '🏆');
+        const Camera = () => React.createElement('span', null, '📸');
+        const Lightbulb = () => React.createElement('span', null, '💡');
+        const Undo = () => React.createElement('span', null, '↶');
 
         const GridPathGame = () => {
             const [difficulty, setDifficulty] = useState('easy');
@@ -69,21 +75,6 @@
                 hard: { size: 6, maxNumber: 36 },
                 expert: { size: 7, maxNumber: 49 }
             };
-
-            // Prevent scrolling on the document
-            useEffect(() => {
-                const preventDefault = (e) => {
-                    e.preventDefault();
-                };
-                
-                document.addEventListener('touchmove', preventDefault, { passive: false });
-                document.addEventListener('touchstart', preventDefault, { passive: false });
-                
-                return () => {
-                    document.removeEventListener('touchmove', preventDefault);
-                    document.removeEventListener('touchstart', preventDefault);
-                };
-            }, []);
 
             // Generate a valid solvable grid using random walk
             const generateGrid = useCallback((size, maxNumber) => {
@@ -158,15 +149,15 @@
                 
                 const gridRect = gridRef.current.getBoundingClientRect();
                 const config = difficulties[difficulty];
-                const cellSize = Math.floor(280 / config.size);
+                const cellSize = 280 / config.size;
                 
-                const x = clientX - gridRect.left - 8;
-                const y = clientY - gridRect.top - 8;
+                const x = clientX - gridRect.left - 10; // Account for padding
+                const y = clientY - gridRect.top - 10;
                 
                 if (x < 0 || y < 0) return null;
                 
-                const col = Math.floor(x / (cellSize + 2));
-                const row = Math.floor(y / (cellSize + 2));
+                const col = Math.floor(x / (cellSize + 1)); // +1 for gap
+                const row = Math.floor(y / (cellSize + 1));
                 
                 if (row >= 0 && row < config.size && col >= 0 && col < config.size) {
                     return { row, col };
@@ -219,7 +210,7 @@
                 
                 const ctx = canvas.getContext('2d');
                 const config = difficulties[difficulty];
-                const cellSize = Math.floor(280 / config.size);
+                const cellSize = 280 / config.size;
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
@@ -240,22 +231,22 @@
                     
                     // Start point
                     const start = currentPath[0];
-                    const startX = (start.col + 0.5) * (cellSize + 2);
-                    const startY = (start.row + 0.5) * (cellSize + 2);
+                    const startX = (start.col + 0.5) * (cellSize + 1);
+                    const startY = (start.row + 0.5) * (cellSize + 1);
                     ctx.moveTo(startX, startY);
                     
                     // Draw smooth curves between points
                     for (let i = 1; i < currentPath.length; i++) {
                         const current = currentPath[i];
-                        const x = (current.col + 0.5) * (cellSize + 2);
-                        const y = (current.row + 0.5) * (cellSize + 2);
+                        const x = (current.col + 0.5) * (cellSize + 1);
+                        const y = (current.row + 0.5) * (cellSize + 1);
                         
                         if (i === 1) {
                             ctx.lineTo(x, y);
                         } else {
                             const prev = currentPath[i - 1];
-                            const prevX = (prev.col + 0.5) * (cellSize + 2);
-                            const prevY = (prev.row + 0.5) * (cellSize + 2);
+                            const prevX = (prev.col + 0.5) * (cellSize + 1);
+                            const prevY = (prev.row + 0.5) * (cellSize + 1);
                             
                             // Create smooth curve
                             const cpX = (prevX + x) / 2;
@@ -271,8 +262,8 @@
                 ctx.shadowBlur = 0;
                 for (let i = 0; i < currentPath.length; i++) {
                     const cell = currentPath[i];
-                    const x = (cell.col + 0.5) * (cellSize + 2);
-                    const y = (cell.row + 0.5) * (cellSize + 2);
+                    const x = (cell.col + 0.5) * (cellSize + 1);
+                    const y = (cell.row + 0.5) * (cellSize + 1);
                     
                     // Outer glow
                     ctx.fillStyle = 'rgba(255, 107, 53, 0.3)';
@@ -310,6 +301,7 @@
                     setIsDragging(true);
                     setDragPath([{ row, col, value: cell.value }]);
                 } else {
+                    // Count as backtrack
                     setBacktracks(prev => prev + 1);
                 }
             }, [gameState, grid, currentNumber, getCellFromCoords]);
@@ -348,6 +340,7 @@
                 // Check if we're going backwards in the path
                 const existingIndex = dragPath.findIndex(p => p.row === row && p.col === col);
                 if (existingIndex >= 0) {
+                    // Allow going back in the path
                     setDragPath(prev => prev.slice(0, existingIndex + 1));
                     return;
                 }
@@ -492,10 +485,10 @@
             };
 
             if (gameState === 'menu') {
-                return React.createElement('div', {
-                    ref: gameRef,
-                    className: "max-w-md mx-auto p-6 bg-gray-900 text-white rounded-xl shadow-2xl"
-                }, 
+                return React.createElement('div', { 
+                    ref: gameRef, 
+                    className: "max-w-md mx-auto p-6 bg-gray-900 text-white rounded-xl shadow-2xl" 
+                },
                     React.createElement('div', { className: "text-center mb-8" },
                         React.createElement('h1', { className: "text-3xl font-bold mb-2 text-orange-400" }, "Grid Path Puzzle"),
                         React.createElement('p', { className: "text-gray-300" }, "Connect numbers 1→2→3... in sequence"),
@@ -508,7 +501,7 @@
                     React.createElement('div', { className: "mb-6" },
                         React.createElement('label', { className: "block text-sm font-medium mb-3 text-gray-300" }, "Choose Difficulty:"),
                         React.createElement('div', { className: "grid grid-cols-2 gap-2" },
-                            Object.entries(difficulties).map(([level, config]) => 
+                            Object.entries(difficulties).map(([level, config]) =>
                                 React.createElement('button', {
                                     key: level,
                                     onClick: () => setDifficulty(level),
@@ -529,7 +522,7 @@
                         onClick: startGame,
                         className: "w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                     },
-                        React.createElement(Play, { size: 20 }),
+                        React.createElement(Play),
                         "Start Game"
                     )
                 );
@@ -539,9 +532,9 @@
             const gridSize = config.size;
             const cellSize = Math.floor(280 / gridSize);
 
-            return React.createElement('div', {
-                ref: gameRef,
-                className: "max-w-md mx-auto p-4 bg-gray-900 text-white rounded-xl shadow-2xl game-area"
+            return React.createElement('div', { 
+                ref: gameRef, 
+                className: "max-w-md mx-auto p-4 bg-gray-900 text-white rounded-xl shadow-2xl" 
             },
                 // Header
                 React.createElement('div', { className: "text-center mb-4" },
@@ -551,11 +544,11 @@
                                 onClick: undoMove,
                                 disabled: path.length === 0,
                                 className: "bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-700 disabled:text-gray-500 p-2 rounded-lg transition-colors"
-                            }, React.createElement(Undo, { size: 16 })),
+                            }, React.createElement(Undo)),
                             React.createElement('button', {
                                 onClick: () => setShowHint(!showHint),
                                 className: `p-2 rounded-lg transition-colors ${showHint ? 'bg-blue-500' : 'bg-blue-600 hover:bg-blue-700'}`
-                            }, React.createElement(Lightbulb, { size: 16 }))
+                            }, React.createElement(Lightbulb))
                         ),
                         React.createElement('div', { className: "text-center" },
                             React.createElement('div', { className: "text-lg font-bold text-orange-400" }, `Next: ${currentNumber}`),
@@ -565,24 +558,25 @@
                             React.createElement('button', {
                                 onClick: takeScreenshot,
                                 className: "bg-purple-600 hover:bg-purple-700 p-2 rounded-lg transition-colors"
-                            }, React.createElement(Camera, { size: 16 })),
+                            }, React.createElement(Camera)),
                             React.createElement('button', {
                                 onClick: resetGame,
                                 className: "bg-gray-700 hover:bg-gray-600 p-2 rounded-lg transition-colors"
-                            }, React.createElement(RotateCcw, { size: 16 }))
+                            }, React.createElement(RotateCcw))
                         )
                     ),
                     React.createElement('div', { className: "flex justify-between text-sm text-gray-300" },
-                        React.createElement('span', {}, `Score: ${score}`),
-                        React.createElement('span', {}, `Backtracks: ${backtracks}`),
-                        React.createElement('span', {}, `Time: ${formatTime(timeElapsed)}`)
+                        React.createElement('span', null, `Score: ${score}`),
+                        React.createElement('span', null, `Backtracks: ${backtracks}`),
+                        React.createElement('span', null, `Time: ${formatTime(timeElapsed)}`)
                     )
                 ),
+
                 // Game Grid with Canvas Overlay
                 React.createElement('div', { className: "flex justify-center mb-4" },
                     React.createElement('div', {
                         ref: gridRef,
-                        className: "relative bg-gray-100 rounded-lg p-2 select-none game-area",
+                        className: "relative bg-gray-100 rounded-lg p-2 select-none",
                         style: { width: '300px', height: '300px' },
                         onMouseDown: handleDragStart,
                         onMouseMove: handleDragMove,
@@ -591,6 +585,7 @@
                         onTouchMove: handleDragMove,
                         onTouchEnd: handleDragEnd
                     },
+                        // Grid
                         React.createElement('div', {
                             className: "absolute inset-2 grid gap-0.5",
                             style: {
@@ -624,6 +619,7 @@
                                 )
                             )
                         ),
+                        // Canvas for drawing path
                         React.createElement('canvas', {
                             ref: canvasRef,
                             width: 280,
@@ -633,10 +629,12 @@
                         })
                     )
                 ),
+
+                // Completion message
                 gameState === 'completed' && React.createElement('div', {
                     className: "bg-green-800 border border-green-600 p-4 rounded-lg text-center mb-4"
                 },
-                    React.createElement(Trophy, { className: "mx-auto mb-2 text-yellow-400", size: 32 }),
+                    React.createElement(Trophy, { className: "mx-auto mb-2 text-yellow-400", style: { fontSize: '32px' } }),
                     React.createElement('div', { className: "text-lg font-bold text-green-300 mb-1" }, "Puzzle Completed!"),
                     React.createElement('div', { className: "text-sm text-green-400" }, `Final Score: ${score}`),
                     React.createElement('div', { className: "text-sm text-green-400" }, `Time: ${formatTime(timeElapsed)}`),
@@ -652,6 +650,8 @@
                         }, "Play Again")
                     )
                 ),
+
+                // How to Play
                 React.createElement('div', { className: "text-center mt-4" },
                     React.createElement('div', { className: "text-xs text-gray-500" },
                         "Drag/swipe 1→2→3... • Only 90° moves • Avoid backtracks for high score"
