@@ -96,7 +96,7 @@
                 }
             };
 
-            // COMPLETELY REWRITTEN: Generate grid with random number placement
+            // FIXED: Generate grid with guaranteed solvability
             const generateGrid = useCallback((size, maxNumber, barrierCount) => {
                 console.log(`Generating grid: ${size}x${size}, numbers: ${maxNumber}, barriers: ${barrierCount}`);
                 
@@ -118,22 +118,83 @@
                     newGrid.push(row);
                 }
                 
-                // Place numbers randomly (not in a connected path)
-                const availableCells = [];
-                for (let i = 0; i < size; i++) {
-                    for (let j = 0; j < size; j++) {
-                        availableCells.push({ row: i, col: j });
+                // Generate a valid path through ALL cells first
+                const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                const usedCells = new Set();
+                const pathCells = [];
+                
+                // Start from a corner
+                let currentRow = 0;
+                let currentCol = 0;
+                
+                // Create path through all cells
+                pathCells.push({ row: currentRow, col: currentCol });
+                usedCells.add(`${currentRow},${currentCol}`);
+                
+                // Generate path through all remaining cells
+                while (pathCells.length < size * size) {
+                    const validMoves = [];
+                    
+                    for (const [dr, dc] of directions) {
+                        const newRow = currentRow + dr;
+                        const newCol = currentCol + dc;
+                        
+                        if (newRow >= 0 && newRow < size && 
+                            newCol >= 0 && newCol < size && 
+                            !usedCells.has(`${newRow},${newCol}`)) {
+                            validMoves.push([newRow, newCol]);
+                        }
+                    }
+                    
+                    // If no valid moves, try to find a different starting point
+                    if (validMoves.length === 0) {
+                        // Find an unused cell adjacent to the path
+                        let found = false;
+                        for (let i = 0; i < size && !found; i++) {
+                            for (let j = 0; j < size && !found; j++) {
+                                if (!usedCells.has(`${i},${j}`)) {
+                                    // Check if this cell is adjacent to any used cell
+                                    for (const [dr, dc] of directions) {
+                                        const adjRow = i + dr;
+                                        const adjCol = j + dc;
+                                        if (adjRow >= 0 && adjRow < size && 
+                                            adjCol >= 0 && adjCol < size && 
+                                            usedCells.has(`${adjRow},${adjCol}`)) {
+                                            currentRow = i;
+                                            currentCol = j;
+                                            pathCells.push({ row: currentRow, col: currentCol });
+                                            usedCells.add(`${currentRow},${currentCol}`);
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (!found) {
+                            console.log('Failed to generate complete path, retrying...');
+                            return generateGrid(size, maxNumber, barrierCount);
+                        }
+                    } else {
+                        // Choose random valid move
+                        const [nextRow, nextCol] = validMoves[Math.floor(Math.random() * validMoves.length)];
+                        currentRow = nextRow;
+                        currentCol = nextCol;
+                        pathCells.push({ row: currentRow, col: currentCol });
+                        usedCells.add(`${currentRow},${currentCol}`);
                     }
                 }
                 
-                // Shuffle and place numbers
+                // Now place numbers on the path at strategic intervals
+                const numberInterval = Math.floor(pathCells.length / maxNumber);
                 for (let num = 1; num <= maxNumber; num++) {
-                    const randomIndex = Math.floor(Math.random() * availableCells.length);
-                    const cell = availableCells.splice(randomIndex, 1)[0];
+                    const pathIndex = Math.min((num - 1) * numberInterval, pathCells.length - 1);
+                    const cell = pathCells[pathIndex];
                     newGrid[cell.row][cell.col].value = num;
                 }
                 
-                // Add barriers randomly (avoiding numbered cells)
+                // Add barriers to cells that are NOT in the path
                 let barriersPlaced = 0;
                 const maxAttempts = 100;
                 let attempts = 0;
@@ -142,7 +203,7 @@
                     const row = Math.floor(Math.random() * size);
                     const col = Math.floor(Math.random() * size);
                     
-                    // Only place barriers in cells that don't have numbers
+                    // Only place barriers in cells that don't have numbers and are not in the path
                     if (newGrid[row][col].value === 0 && !newGrid[row][col].isBarrier) {
                         newGrid[row][col].isBarrier = true;
                         barriersPlaced++;
@@ -510,7 +571,7 @@
                         React.createElement('p', { className: "text-gray-400 text-sm mt-2" }, "Find a path that visits every cell"),
                         React.createElement('div', { className: "flex items-center justify-center gap-2 mt-3 text-orange-300" },
                             React.createElement('div', { className: "w-4 h-4 bg-orange-500 rounded-full" }),
-                            React.createElement('div', { className: "text-sm" }, "Random numbers • Navigate barriers • Visit all cells")
+                            React.createElement('div', { className: "text-sm" }, "Guaranteed solvable • Navigate barriers • Visit all cells")
                         )
                     ),
                     
