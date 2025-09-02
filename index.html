@@ -30,7 +30,7 @@
             border: 2px solid #991b1b !important;
         }
         .barrier-cell::after {
-            content: '��';
+            content: '';
             font-size: 16px;
         }
     </style>
@@ -427,8 +427,14 @@
                         const newScore = newPath.length * difficulties[difficulty].size * 10 - backtracks * 5;
                         setScore(Math.max(0, newScore));
                         
-                        // FIXED: Check if all numbered cells are completed
-                        if (newCurrentNumber - 1 === maxNumber) {
+                        // FIXED: Check if ALL cells (including empty ones) are visited
+                        const config = difficulties[difficulty];
+                        const totalCells = config.size * config.size;
+                        const visitedCells = newGrid.flat().filter(cell => cell.visited && !cell.isBarrier).length;
+                        const barrierCells = newGrid.flat().filter(cell => cell.isBarrier).length;
+                        const requiredVisitedCells = totalCells - barrierCells;
+                        
+                        if (visitedCells === requiredVisitedCells && newCurrentNumber - 1 === maxNumber) {
                             setGameState('completed');
                             if (intervalRef.current) {
                                 clearInterval(intervalRef.current);
@@ -646,7 +652,7 @@
                                                 ? 'bg-orange-200' 
                                                 : cell.value === currentNumber && showHint
                                                 ? 'bg-yellow-300 animate-pulse'
-                                                : 'bg-white hover:bg-gray-100'
+                                                : 'bg-white'
                                         }`,
                                         style: {
                                             width: `${cellSize}px`,
