@@ -155,7 +155,7 @@
                     // Choose random valid move
                     const [nextRow, nextCol] = validMoves[Math.floor(Math.random() * validMoves.length)];
                     
-                    usedCells.add(`${nextRow},${newCol}`);
+                    usedCells.add(`${nextRow},${nextCol}`);
                     newGrid[nextRow][nextCol].value = num;
                     
                     currentRow = nextRow;
