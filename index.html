@@ -25,22 +25,13 @@
             overflow: auto;
             -webkit-overflow-scrolling: touch;
         }
-        .game-area {
-            touch-action: none;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            -khtml-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }
         .barrier-cell {
             background: #dc2626 !important;
             border: 2px solid #991b1b !important;
         }
         .barrier-cell::after {
             content: '��';
-            font-size: 20px;
+            font-size: 16px;
         }
     </style>
 </head>
@@ -77,37 +68,37 @@
             const gridRef = useRef(null);
             const intervalRef = useRef(null);
 
-            // Fixed difficulty system - path goes through ALL cells
+            // FIXED: Proper difficulty system with sparse numbers and barriers
             const difficulties = {
                 easy: { 
                     size: 4, 
-                    maxNumber: 16, 
+                    maxNumber: 8, // Only 8 numbers instead of 16
                     barriers: 0, 
-                    description: "4×4 grid, no barriers"
+                    description: "4×4 grid, 8 numbers, no barriers"
                 },
                 medium: { 
                     size: 5, 
-                    maxNumber: 25, 
+                    maxNumber: 10, // Only 10 numbers instead of 25
                     barriers: 2, 
-                    description: "5×5 grid, 2 barriers"
+                    description: "5×5 grid, 10 numbers, 2 barriers"
                 },
                 hard: { 
                     size: 6, 
-                    maxNumber: 36, 
+                    maxNumber: 12, // Only 12 numbers instead of 36
                     barriers: 4, 
-                    description: "6×6 grid, 4 barriers"
+                    description: "6×6 grid, 12 numbers, 4 barriers"
                 },
                 expert: { 
                     size: 7, 
-                    maxNumber: 49, 
+                    maxNumber: 14, // Only 14 numbers instead of 49
                     barriers: 6, 
-                    description: "7×7 grid, 6 barriers"
+                    description: "7×7 grid, 14 numbers, 6 barriers"
                 }
             };
 
-            // FIXED: Generate grid where path goes through ALL cells, with proper barriers
+            // FIXED: Generate grid with sparse numbers and guaranteed solvability
             const generateGrid = useCallback((size, maxNumber, barrierCount) => {
-                console.log(`Generating grid: ${size}x${size}, barriers: ${barrierCount}`);
+                console.log(`Generating grid: ${size}x${size}, numbers: ${maxNumber}, barriers: ${barrierCount}`);
                 
                 // Create empty grid
                 const newGrid = [];
@@ -139,8 +130,8 @@
                 usedCells.add(`${currentRow},${currentCol}`);
                 newGrid[currentRow][currentCol].value = 1;
                 
-                // Generate path for numbers 2 through ALL cells (size * size)
-                for (let num = 2; num <= size * size; num++) {
+                // Generate path for numbers 2 through maxNumber
+                for (let num = 2; num <= maxNumber; num++) {
                     // Find valid adjacent cells
                     const validMoves = [];
                     
@@ -164,14 +155,14 @@
                     // Choose random valid move
                     const [nextRow, nextCol] = validMoves[Math.floor(Math.random() * validMoves.length)];
                     
-                    usedCells.add(`${nextRow},${nextCol}`);
+                    usedCells.add(`${nextRow},${newCol}`);
                     newGrid[nextRow][nextCol].value = num;
                     
                     currentRow = nextRow;
                     currentCol = nextCol;
                 }
                 
-                // Now add barriers as proper obstacles (cells you can't move to)
+                // Now add barriers strategically - only in cells that are NOT part of the numbered path
                 let barriersPlaced = 0;
                 const maxAttempts = 100;
                 let attempts = 0;
@@ -180,15 +171,15 @@
                     const row = Math.floor(Math.random() * size);
                     const col = Math.floor(Math.random() * size);
                     
-                    // Don't place barriers on the first few cells (to ensure solvability)
-                    if (newGrid[row][col].value > 3 && !newGrid[row][col].isBarrier) {
+                    // Only place barriers in cells that don't have numbers
+                    if (newGrid[row][col].value === 0 && !newGrid[row][col].isBarrier) {
                         newGrid[row][col].isBarrier = true;
                         barriersPlaced++;
                     }
                     attempts++;
                 }
                 
-                console.log(`Grid generated successfully with ${barriersPlaced} barriers`);
+                console.log(`Grid generated successfully with ${barriersPlaced} barriers and ${maxNumber} numbers`);
                 return newGrid;
             }, []);
 
@@ -252,7 +243,7 @@
                 };
             }, [gameState, gameStartTime]);
 
-            // FIXED: Clean, single-color path drawing with proper thickness
+            // FIXED: Path drawing that goes through ALL cells (numbered and empty)
             const drawPath = useCallback(() => {
                 const canvas = canvasRef.current;
                 if (!canvas) return;
@@ -267,9 +258,9 @@
                 
                 if (currentPath.length < 2) return;
                 
-                // Draw clean, thick path in single color
+                // Draw clean, thick path
                 ctx.strokeStyle = '#ff6b35';
-                ctx.lineWidth = 10; // Thick but not overwhelming
+                ctx.lineWidth = 10;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.shadowColor = '#ff6b35';
@@ -307,7 +298,7 @@
                     ctx.stroke();
                 }
                 
-                // Draw clean path points
+                // Draw path points
                 ctx.shadowBlur = 0;
                 for (let i = 0; i < currentPath.length; i++) {
                     const cell = currentPath[i];
@@ -332,7 +323,7 @@
                 drawPath();
             }, [drawPath]);
 
-            // FIXED: Handle drag with proper barrier checking
+            // FIXED: Handle drag with proper logic for sparse numbers
             const handleDragStart = useCallback((e) => {
                 if (gameState !== 'playing') return;
                 
@@ -398,7 +389,8 @@
                 const colDiff = Math.abs(col - lastCell.col);
                 
                 if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
-                    if (cell.value === expectedNumber + 1 && !cell.visited) {
+                    // FIXED: Allow moving to empty cells (value 0) or next numbered cell
+                    if ((cell.value === 0 || cell.value === expectedNumber + 1) && !cell.visited) {
                         setDragPath(prev => [...prev, { row, col, value: cell.value }]);
                     }
                 }
@@ -415,11 +407,16 @@
                         let newPath = [...path];
                         let newCurrentNumber = currentNumber;
                         
+                        // FIXED: Process the path, advancing number only when we hit a numbered cell
                         for (const dragCell of dragPath) {
                             if (dragCell.value === newCurrentNumber) {
                                 newGrid[dragCell.row][dragCell.col] = { ...newGrid[dragCell.row][dragCell.col], visited: true };
                                 newPath.push(dragCell);
                                 newCurrentNumber++;
+                            } else if (dragCell.value === 0) {
+                                // Empty cell - just mark as visited but don't advance number
+                                newGrid[dragCell.row][dragCell.col] = { ...newGrid[dragCell.row][dragCell.col], visited: true };
+                                newPath.push(dragCell);
                             }
                         }
                         
@@ -430,10 +427,8 @@
                         const newScore = newPath.length * difficulties[difficulty].size * 10 - backtracks * 5;
                         setScore(Math.max(0, newScore));
                         
-                        const config = difficulties[difficulty];
-                        const totalCells = config.size * config.size;
-                        
-                        if (newCurrentNumber - 1 === totalCells) {
+                        // FIXED: Check if all numbered cells are completed
+                        if (newCurrentNumber - 1 === maxNumber) {
                             setGameState('completed');
                             if (intervalRef.current) {
                                 clearInterval(intervalRef.current);
@@ -444,7 +439,7 @@
                     setIsDragging(false);
                     setDragPath([]);
                 }, 100);
-            }, [isDragging, dragPath, grid, path, currentNumber, backtracks, difficulty]);
+            }, [isDragging, dragPath, grid, path, currentNumber, backtracks, difficulty, maxNumber]);
 
             const undoMove = () => {
                 if (path.length === 0 || gameState !== 'playing') return;
@@ -458,7 +453,12 @@
                 
                 setGrid(newGrid);
                 setPath(path.slice(0, -1));
-                setCurrentNumber(currentNumber - 1);
+                
+                // FIXED: Only decrease currentNumber if we're undoing a numbered cell
+                if (lastMove.value > 0) {
+                    setCurrentNumber(currentNumber - 1);
+                }
+                
                 setBacktracks(prev => prev + 1);
                 
                 const newScore = Math.max(0, (path.length - 1) * difficulties[difficulty].size * 10 - backtracks * 5);
@@ -529,10 +529,10 @@
                     React.createElement('div', { className: "text-center mb-8" },
                         React.createElement('h1', { className: "text-3xl font-bold mb-2 text-orange-400" }, "Grid Path Puzzle"),
                         React.createElement('p', { className: "text-gray-300" }, "Connect numbers 1→2→3... through ALL cells"),
-                        React.createElement('p', { className: "text-gray-400 text-sm mt-2" }, "Navigate around barriers to complete the path"),
+                        React.createElement('p', { className: "text-gray-400 text-sm mt-2" }, "Path goes through numbered and empty cells"),
                         React.createElement('div', { className: "flex items-center justify-center gap-2 mt-3 text-orange-300" },
                             React.createElement('div', { className: "w-4 h-4 bg-orange-500 rounded-full" }),
-                            React.createElement('div', { className: "text-sm" }, "Path goes through every cell • Barriers block movement")
+                            React.createElement('div', { className: "text-sm" }, "Sparse numbers • Navigate barriers • Complete all cells")
                         )
                     ),
                     
@@ -653,7 +653,7 @@
                                             height: `${cellSize}px`
                                         }
                                     },
-                                        !cell.isBarrier && React.createElement('div', {
+                                        !cell.isBarrier && cell.value > 0 && React.createElement('div', {
                                             className: `w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
                                                 cell.visited ? 'bg-orange-500 text-white' : 'bg-gray-700 text-white'
                                             }`,
@@ -698,7 +698,7 @@
                 // How to Play
                 React.createElement('div', { className: "text-center mt-4" },
                     React.createElement('div', { className: "text-xs text-gray-500" },
-                        "Connect ALL cells 1→2→3... • Navigate around barriers 🚫 • Complete the entire grid"
+                        "Connect numbers 1→2→3... • Path through ALL cells • Navigate around barriers 🚫"
                     )
                 )
             );
