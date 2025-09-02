@@ -375,7 +375,6 @@
                 if (dragPath.length === 0) return;
                 
                 const lastCell = dragPath[dragPath.length - 1];
-                const expectedNumber = dragPath.length + currentNumber - 1;
                 
                 if (row === lastCell.row && col === lastCell.col) return;
                 
@@ -389,8 +388,10 @@
                 const colDiff = Math.abs(col - lastCell.col);
                 
                 if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
-                    // FIXED: Allow moving to empty cells (value 0) or next numbered cell
-                    if ((cell.value === 0 || cell.value === expectedNumber + 1) && !cell.visited) {
+                    // FIXED: Allow moving to ANY empty cell or the next numbered cell
+                    const expectedNextNumber = currentNumber + dragPath.filter(c => c.value > 0).length;
+                    
+                    if ((cell.value === 0 || cell.value === expectedNextNumber) && !cell.visited) {
                         setDragPath(prev => [...prev, { row, col, value: cell.value }]);
                     }
                 }
